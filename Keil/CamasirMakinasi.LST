@@ -1,0 +1,419 @@
+A51 MACRO ASSEMBLER  CAMASIRMAKINASI                                                      05/25/2015 00:41:38 PAGE     1
+
+
+MACRO ASSEMBLER A51 V8.02b
+OBJECT MODULE PLACED IN CamasirMakinasi.OBJ
+ASSEMBLER INVOKED BY: C:\Keil_v5\C51\BIN\A51.EXE CamasirMakinasi.a51 SET(SMALL) DEBUG EP
+
+LOC  OBJ            LINE     SOURCE
+
+0000                   1     ORG 0000H
+0000 802E              2             SJMP MAIN
+                       3             
+0003                   4     ORG 0003H ;On_Off / Start_Pause - INTERRUPT-0
+0003 0200A1            5             LJMP ON_START ;yapilan interrupt'in on/off veya start/pause butonundan gelmesine gö
+                             re ilgili islemler yapiliyor
+000B                   6     ORG 000BH
+000B 1141              7             ACALL TIMER_INT ;Timer-0'da interrupt meydana gelince ilgili islemlerin oldugu yere
+                              gidilir
+000D 32                8             RETI
+                       9             
+0013                  10     ORG 0013H
+0013 020103           11             LJMP SELECT_MOD ;Mod butonlarina basildiginda interrupt-1 etkin hale gelir ve islem
+                             lerin oldugu yere gidilir
+                      12     
+001B                  13     ORG 001BH
+001B 020083           14             LJMP YAZDIR ;Timer-1 interrupt'i, 7-Segment'ler icin gösterge zaman araligini belir
+                             ler
+                      15             
+0030                  16     ORG 0030H
+0030                  17             MAIN:
+  0090                18             S1    EQU P1.0 ;Port-1'in ilk 4 ucu 4-Digit-7-Segment-Display'e baglidir ve hangi d
+                             igit'in etkin oldugunu belirler
+  0091                19             S2    EQU P1.1
+  0092                20             S3    EQU P1.2
+  0093                21             S4    EQU P1.3
+  0080                22             PORT EQU P0 ; 7-Segment'in göstergelerine baglanan porttur
+0030 900200           23             MOV DPTR,#num ;7-Segment gösterimi için bellekte yer alan hexadecimal olarak buluna
+                             n sayilarin bellek adresi DPTR register'1na atilir
+  00A2                24             W_LED EQU P2.2 ;Wash-Rinse-Spin Led'leri Port-2'nin ilgili uclarina baglidirlar
+  00A1                25             R_LED EQU P2.1
+  00A0                26             S_LED EQU P2.0
+  00A6                27             Motor0 EQU P2.6 ;Devrede kullandigimiz DC Motor'un girislerini ayarladik
+  00A7                28             Motor1 EQU P2.7
+  00B7                29             Buzzer EQU P3.7 ;Devrede kullandigimiz ses kaynagi olan Buzzer'in girisi
+0033 C2B7             30             CLR Buzzer ;Buzzer'i temizledik
+0035 D288             31             SETB IT0 ;Interrupt 0 ve 1'in düsen kenarli olmasi ayarlandi
+0037 D28A             32             SETB IT1
+0039 75A881           33             MOV IE,#10000001B ;EX0 interrupt'i etkin hale getirildi On/Off butonu icin
+003C 758921           34             MOV TMOD,#00100001B ;Timer 0 ve 1'in modlari ayarlandi
+003F 80FE             35             SJMP $
+                      36             
+0041                  37     TIMER_INT: ;Timer-0'da kesme meydana gelince ilgili islemler yapilir
+0041 C28D             38             CLR TF0  ;Timer Flag'leri temizlenir
+0043 C28C             39             CLR TR0
+                      40             
+0045 D824             41             DJNZ R0,_50K ;Eger 1sn. olmadiysa _50K label'ina dallanilir
+0047 802B             42             SJMP AYARLA ;Eger 1sn. olduysa 7-Segment gösterimini saglayan register'larin degisi
+                             mi icin dallanma olur
+0049                  43             CONT2:
+0049 DA06             44             DJNZ R2,NEXT ;Rinse Led'i için gereken zamanin gelip gelmedigi kontrol edilir
+004B B2A2             45             CPL W_LED ;Eger Rinse zamani geldiyse ilgili wash led'i kapatilip, rinse led'i yaki
+                             lir
+004D B2A1             46             CPL R_LED
+004F 8006             47             SJMP CONT
+0051                  48             NEXT:
+0051 DB04             49             DJNZ R3,CONT ;Spin Led'i için gereken zamanin gelip gelmedigi kontrol edilir
+0053 B2A1             50             CPL R_LED ;Eger Spin zamani geldiyse ilgili rinse led'i kapatilip, rinse led'i yaki
+A51 MACRO ASSEMBLER  CAMASIRMAKINASI                                                      05/25/2015 00:41:38 PAGE     2
+
+                             lir
+0055 B2A0             51             CPL S_LED
+0057                  52             CONT:
+0057 D910             53                     DJNZ R1,ONE_SEC ;Toplam sürenin dolup dolmadigi kontrol edilir, dolmadiysa 
+                             yeniden 1sn. için ayarlanmalar yapilir
+0059 B2A0             54                     CPL S_LED ;Makina süresi dolduysa Spin Led'i kapatilir
+005B C28E             55                     CLR TR1 ;Timer-1 ekran kapatilir
+005D D2AA             56                     SETB EX1 ;Interrupt-1 - Mod Butonlari tekrar aktif hale getirilir
+005F B2A7             57                     CPL Motor1 ;Motor'u durdurduk
+0061 3191             58                     ACALL Buzz ;Yikama bittiginde ses ötmesi icin Buzzer'i ayarladik "Buzz" alt
+                              programinda
+0063 11E3             59                     ACALL Default_Ata ;Makina calisir halde, tekrardan default degerlerin atand
+                             igi alt-program cagrildi
+0065 D28E             60                     SETB TR1;Timer-1 ekran acilir
+0067 800A             61                     SJMP N_SEC
+0069                  62             ONE_SEC:
+0069 7814             63             MOV R0,#20 ; 1sn için tekrar R0 register'ina ilgili deger atanir
+006B                  64             _50K:
+006B 758C3C           65             MOV TH0,#3CH
+006E 758AB0           66             MOV TL0,#0B0H
+0071 D28C             67             SETB TR0
+0073                  68             N_SEC:
+0073 22               69             RET
+                      70             
+0074 1C               71     AYARLA: DEC R4 ;7-segment'teki son rakam azaltilir
+0075 BCFFD1           72                     CJNE R4,#0FFH,CONT2 ;eger son rakam eksi olmadiysa devam edilir
+0078 7C09             73                     MOV R4,#9 ;son rakam eksi olduysa 9'a tamamlanir
+007A 1D               74                     DEC R5 ;2. rakam azaltilir
+007B BDFFCB           75                     CJNE R5,#0FFH,CONT2 ;2. rakam eksi olmadiysa devam edilir
+007E 7D05             76                     MOV R5,#5 ;2. rakam eksi olduysa 5'e tamamlan1r
+0080 1E               77                     DEC R6 ;3. rakam azaltilir
+0081 80C6             78                     SJMP CONT2      
+                      79     
+0083                  80     YAZDIR: ;Timer-1 için kesme meydana gelince 7-segment'te degerlerin gösterilmesi saglanir
+0083 C290             81             CLR S1 ;ilgili digit aktif hale getirtilir
+0085 EC               82             MOV A,R4 ;ilgili digite gönderilecek rakam Accumulator'e gönderilir
+0086 319E             83             ACALL send_num ;Rakamin 7-segment için gereken hexadecimal sayisini elde etmek için
+                              gereken yere dallanilir
+0088 D290             84             SETB S1 ;tekrar ilgili digit in-aktif hale getirilir
+                      85             
+008A C291             86             CLR S2
+008C ED               87             MOV A,R5
+008D 319E             88             ACALL send_num
+008F D291             89             SETB S2
+                      90             
+0091 C292             91             CLR S3
+0093 EE               92             MOV A,R6
+0094 319E             93             ACALL send_num
+0096 D292             94             SETB S3
+                      95             
+0098 C293             96             CLR S4
+009A 7400             97             MOV A,#0
+009C 319E             98             ACALL send_num
+009E D293             99             SETB S4
+00A0 32              100             RETI
+                     101             
+00A1                 102     ON_START: ;Interrupt-0'a sebep olan butonun ne olduguna karar verilir ve o islemi gercekles
+                             tirecek alt programlar cagilir
+00A1 A2A3            103             MOV C,P2.3 ;P2.3 pini On/Off butonuna baglidir
+00A3 5002            104             JNC Call_On ;Eger On/Off butonuna basildiysa Call_On'a dallanilir
+00A5 800A            105             SJMP Call_SP ;Aksi halde Call_SP'ye dallanilir
+                     106             
+00A7                 107             Call_On:
+00A7 D2D4            108                     SETB RS1 ;On_Off tusuna basildiginin izini tutmak icin register bank degist
+                             irilip ilgili register degeri ayarlanir
+00A9 7901            109                     MOV R1,#1
+A51 MACRO ASSEMBLER  CAMASIRMAKINASI                                                      05/25/2015 00:41:38 PAGE     3
+
+00AB C2D4            110                     CLR RS1 ;default register bank tekrar secilir
+00AD 11BD            111                     ACALL ON_OFF ;On_Off'a dair islemler icin alt-program cagrilir
+00AF 800B            112                     SJMP End_OS ;Cikisa gidilir
+00B1                 113             Call_SP:
+00B1 D2D4            114                     SETB RS1 ;Eger Start/Pause butonuna basildiysa makinanin acik olup olmadigi
+                              icin register bank degistirilip ilgili register kontrol edilir
+00B3 B90104          115                     CJNE R1,#1,End_OS1 ;Eger makina acik degilse -OFF konumundaysa- ilgili yere
+                              dallanilir
+00B6 315C            116                     ACALL S_P ;Start/Pause islemleri icin ilgili alt-program cagrilir
+00B8 8002            117                     SJMP End_OS ;Cikisa gidilir
+00BA                 118             End_OS1:
+00BA C2D4            119                     CLR RS1 ;default register bank
+00BC                 120             End_OS:
+00BC 32              121                     RETI
+                     122                     
+00BD                 123     ON_OFF: ;On/Off butonu icin
+00BD D2D4            124             SETB RS1 ;farkli bir register bank secilerek ilgili register kontrol edilir
+00BF B8000C          125             CJNE R0,#0,OFF ;Eger R0 register'i 0 degilse o zaman OFF konumuna gecilecektir
+00C2 08              126             INC R0 ;ON konumuna gecilecek. ON konumuna gecildigine dair bilgi birakilir ilgili 
+                             register'a
+00C3 C2D4            127             CLR RS1 ;default register bank
+00C5 75A88F          128             MOV IE,#10001111B ;EX0 interrupt'ina ek olarak EX1,ET0,ET1 interrupt'lari da etkin 
+                             hale getirildi
+00C8 11E3            129             ACALL Default_Ata ;ilgili atamalar icin alt program cagrildi
+00CA D28E            130             SETB TR1 ;Ekranda anlik süre gösterimi icin timer-1 calistirildi
+00CC 8014            131             SJMP END_ON ;cikisa gidilir
+00CE                 132             OFF:
+00CE 18              133             DEC R0 ;R0 register'i OFF'a gecildigine dair bilgi icin azaltilir
+00CF 7900            134             MOV R1,#0 ;OFF konumuna gectigimizi Start/Pause butonunun bilmesi icin ilgili regis
+                             ter ayarlandi
+00D1 C2D4            135             CLR RS1 ;OFF durumuna gecilince makinanin tüm islevleri etkisiz hale getirilir
+00D3 C28C            136             CLR TR0 ;Timer'lar durdurulur
+00D5 C28E            137             CLR TR1
+00D7 D2A2            138             SETB W_LED ;Led'ler söner
+00D9 D2A1            139             SETB R_LED
+00DB D2A0            140             SETB S_LED
+00DD D2A7            141             SETB Motor1 ;Motor durdurulur
+00DF 75A881          142             MOV IE,#10000001B ;EX1,ET0,ET1 timer'lari etkisiz hale getirilir
+00E2                 143             END_ON:
+00E2 22              144             RET
+                     145             
+00E3                 146     Default_Ata: ;Default olarak makina daily Mod'dadir. 
+00E3 793C            147             MOV R1,#60 ;60 sn. sürmektedir, gösterge ve timer'lar için gereken register atamala
+                             ri yapilir
+00E5 7A23            148             MOV R2,#35
+00E7 7B32            149             MOV R3,#50
+00E9 7C00            150             MOV R4,#0
+00EB 7D00            151             MOV R5,#0
+00ED 7E01            152             MOV R6,#1
+00EF 7F00            153             MOV R7,#0 ;PreWash'a basilmadigi belirtilir
+00F1 7814            154             MOV R0,#20 ;Süre hesaplamasinda 1 saniyeyi olusturmak icin kullanilan register
+00F3 758C3C          155             MOV TH0,#3CH ;Timer-0 - 16bit'lik - 50000microsn. 
+00F6 758AB0          156             MOV TL0,#0B0H
+00F9 758DF6          157             MOV TH1,#-10 ;Timer-1 - Yükleme degerleri
+00FC 758BF6          158             MOV TL1,#-10
+00FF 75F000          159             MOV B,#0
+0102 22              160             RET     
+                     161             
+0103                 162     SELECT_MOD:
+0103 A297            163             MOV C,P1.7 ;Mod seçimi - Daily,Wool,Cotton veya PreWash'a göre dallanma olur.
+0105 500C            164             JNC DAILY
+0107 A296            165             MOV C,P1.6
+0109 5018            166             JNC WOOL
+010B A295            167             MOV C,P1.5
+010D 5024            168             JNC COTTON
+010F A294            169             MOV C,P1.4
+A51 MACRO ASSEMBLER  CAMASIRMAKINASI                                                      05/25/2015 00:41:38 PAGE     4
+
+0111 5030            170             JNC PWASH
+                     171             
+0113                 172             DAILY: ;Daily Mod'u 60 sn. sürmektedir, gösterge ve timer'lar için gereken register
+                              atamalari yapilir
+0113 793C            173             MOV R1,#60
+0115 7A23            174             MOV R2,#35
+0117 7B32            175             MOV R3,#50
+                     176             
+0119 7C00            177             MOV R4,#0
+011B 7D00            178             MOV R5,#0
+011D 7E01            179             MOV R6,#1
+011F 7F00            180             MOV R7,#0 ;PreWash'a basilmadigi belirtilir
+0121 8038            181             SJMP END_MOD ;Select_Mod'dan cikilir
+0123                 182             WOOL: ;Wool mod'u 90 sn. sürmektedir, gösterge ve timer'lar için gereken register a
+                             tamalari yapilir
+0123 795A            183             MOV R1,#90
+0125 7A37            184             MOV R2,#55
+0127 7B4B            185             MOV R3,#75
+                     186             
+0129 7C00            187             MOV R4,#0
+012B 7D03            188             MOV R5,#3
+012D 7E01            189             MOV R6,#1
+012F 7F00            190             MOV R7,#0 ;PreWash'a basilmadigi belirtilir
+0131 8028            191             SJMP END_MOD ;Select_Mod'dan cikilir
+0133                 192             COTTON: ;Cotton mod'u 120 sn. sürmektedir, gösterge ve timer'lar için gereken regis
+                             ter atamalari yapilir
+0133 7978            193             MOV R1,#120
+0135 7A4B            194             MOV R2,#75
+0137 7B64            195             MOV R3,#100
+                     196             
+0139 7C00            197             MOV R4,#0
+013B 7D00            198             MOV R5,#0
+013D 7E02            199             MOV R6,#2
+013F 7F00            200             MOV R7,#0 ;PreWash'a basilmadigi belirtilir
+0141 8018            201             SJMP END_MOD ;Select_Mod'dan cikilir
+0143                 202             PWASH: ;PreWash seçili mod'a 15sn. ekler, gösterge ve timer'lar için gereken regist
+                             er atamalari yapilir
+0143 BF0015          203             CJNE R7,#0,END_MOD ;Sadece 1 kere PreWash'a basilabilinir her ana mod seçimi sonras
+                             i
+0146 E9              204             MOV A,R1
+0147 240F            205             ADD A,#15
+0149 F9              206             MOV R1,A
+014A EA              207             MOV A,R2
+014B 240F            208             ADD A,#15
+014D FA              209             MOV R2,A
+014E EB              210             MOV A,R3
+014F 240F            211             ADD A,#15
+0151 FB              212             MOV R3,A
+                     213             
+0152 EC              214             MOV A,R4
+0153 2405            215             ADD A,#5
+0155 FC              216             MOV R4,A
+                     217             
+0156 ED              218             MOV A,R5
+0157 2401            219             ADD A,#1
+0159 FD              220             MOV R5,A
+015A 0F              221             INC R7  ;PreWash'a basildigini belirtiriz R7 register'ini artirarak
+015B                 222             END_MOD:
+015B 32              223             RETI
+                     224             
+015C                 225     S_P: ;Yapilan istegin hangisi oldugunu bulmada "B Register"ini kullandik
+015C E5F0            226             MOV A,B ;B Register'ini Accu'ye atarak sartli dallanmalari kullanmayi sagladik
+015E 6005            227             JZ Call_Start ;Eger 0 ise ilk defa calistiriliyordur
+0160 B4010E          228             CJNE A,#1,Call_Unpause ;Eger B register'i 0 degil ve de 1'den farkliysa Unpause olm
+                             ustur
+0163 8006            229             SJMP Call_Pause ;Eger 1 ise Pause olmustur
+A51 MACRO ASSEMBLER  CAMASIRMAKINASI                                                      05/25/2015 00:41:38 PAGE     5
+
+0165                 230             Call_Start:
+0165 04              231                     INC A ;Start'a basildigini ilerde anlamak icin artirdik B register'ini (acc
+                             u yardimiyla)
+0166 F5F0            232                     MOV B,A 
+0168 020178          233                     LJMP START ;START'a atladik ilgili ilkleme ve özelliklerin ayari icin
+016B                 234             Call_Pause:
+016B 04              235                     INC A ;Pause'a basildigini ilerde anlamak icin artirdik B register'ini
+016C F5F0            236                     MOV B,A
+016E 020183          237                     LJMP PAUSE ;PAUSE'a atladik ilgili islemler icin
+0171                 238             Call_Unpause:
+0171 75F001          239                     MOV B,#1 ;B Register'ina 1 atadik Unpause durumunda oldugunu anlamak icin
+0174 02018A          240                     LJMP UNPAUSE ;UNPAUSE'a atladik
+0177                 241             Out_SP:
+0177 22              242             RET
+                     243     
+0178                 244     START:
+0178 B2A2            245             CPL W_LED ;WASH LED'ini yanar makina baslatilinca
+017A D28C            246             SETB TR0 ;Timer-0 baslatilir, genel sure isletilir
+017C C2AA            247             CLR EX1 ;Interrupt-1 yani MOD Butonlari etkisiz hale getirilir makinanin calistigi 
+                             süre boyunca
+017E B2A7            248             CPL Motor1 ;Motorun dönmesini baslattik(saat yönünde) START butonuna basilmasi ile
+0180 020177          249             LJMP Out_SP
+                     250             
+0183                 251     PAUSE:
+0183 C28C            252             CLR TR0 ;Makinanin calisma süresini belirleyen Timer-0'i durdurduk
+0185 B2A7            253             CPL Motor1 ;Motor'u durdurduk 
+0187 020177          254             LJMP Out_SP ;Programin akisini ilgili yere gönderdik
+                     255     
+018A                 256     UNPAUSE:
+018A D28C            257             SETB TR0 ;Makinanin calisma süresini belirleyen Timer-0'i tekrar baslattik
+018C B2A7            258             CPL Motor1 ;Motor'u calistirdik
+018E 020177          259             LJMP Out_SP ;Program akisini ilgili yere gönderdik
+                     260     
+0191                 261     Buzz:
+0191 D2B7            262             SETB Buzzer ;Sesi actik
+0193 78FF            263             MOV R0,#0FFH ;belirli süre zaman verdik sesin duyulmasi için
+0195 79FF            264             dongu:MOV R1,#0FFH
+0197 D9FE            265             DJNZ R1,$
+0199 D8FA            266             DJNZ R0,dongu
+019B C2B7            267             CLR Buzzer ;Sesi kapattik
+019D 22              268             RET ;alt programdan cikilir
+                     269             
+019E                 270     send_num:
+019E 93              271         MOVC A,@A+DPTR ;ilgili rakamin 7-segment için gereken deger DPTR register'i ile alinir
+019F F580            272         MOV PORT,A ;Port'a yollanir
+01A1 E4              273         CLR A ;Acu temizlenir
+01A2 31A5            274             ACALL delay ;Ve bir zaman gecikmesi verilir 7-segment'te ilgili degerin görünmesi i
+                             çin
+01A4 22              275         RET
+                     276             
+01A5 D2D4            277     delay: setb rs1 ;farkli bir register bank kullanimi için RS1 biti set edilir
+01A7 7DFF            278                mov r5,#0FFh       
+01A9 DDFE            279     loop2: djnz r5,loop2
+01AB C2D4            280                clr rs1 ;rs1 biti temizlenir
+01AD 22              281            ret
+                     282     
+0200                 283             ORG 200H
+0200 7E306D79        284     num:    DB 7EH,30H,6DH,79H,33H,5BH,5FH,70H,7FH,7BH ;7-segment için gereken hexadecimal sayi
+                             lar
+0204 335B5F70                
+0208 7F7B                    
+                     285             END
+A51 MACRO ASSEMBLER  CAMASIRMAKINASI                                                      05/25/2015 00:41:38 PAGE     6
+
+SYMBOL TABLE LISTING
+------ ----- -------
+
+
+N A M E             T Y P E  V A L U E   ATTRIBUTES
+
+AYARLA . . . . . .  C ADDR   0074H   A   
+B. . . . . . . . .  D ADDR   00F0H   A   
+BUZZ . . . . . . .  C ADDR   0191H   A   
+BUZZER . . . . . .  B ADDR   00B0H.7 A   
+CALL_ON. . . . . .  C ADDR   00A7H   A   
+CALL_PAUSE . . . .  C ADDR   016BH   A   
+CALL_SP. . . . . .  C ADDR   00B1H   A   
+CALL_START . . . .  C ADDR   0165H   A   
+CALL_UNPAUSE . . .  C ADDR   0171H   A   
+CONT . . . . . . .  C ADDR   0057H   A   
+CONT2. . . . . . .  C ADDR   0049H   A   
+COTTON . . . . . .  C ADDR   0133H   A   
+DAILY. . . . . . .  C ADDR   0113H   A   
+DEFAULT_ATA. . . .  C ADDR   00E3H   A   
+DELAY. . . . . . .  C ADDR   01A5H   A   
+DONGU. . . . . . .  C ADDR   0195H   A   
+END_MOD. . . . . .  C ADDR   015BH   A   
+END_ON . . . . . .  C ADDR   00E2H   A   
+END_OS . . . . . .  C ADDR   00BCH   A   
+END_OS1. . . . . .  C ADDR   00BAH   A   
+EX1. . . . . . . .  B ADDR   00A8H.2 A   
+IE . . . . . . . .  D ADDR   00A8H   A   
+IT0. . . . . . . .  B ADDR   0088H.0 A   
+IT1. . . . . . . .  B ADDR   0088H.2 A   
+LOOP2. . . . . . .  C ADDR   01A9H   A   
+MAIN . . . . . . .  C ADDR   0030H   A   
+MOTOR0 . . . . . .  B ADDR   00A0H.6 A   
+MOTOR1 . . . . . .  B ADDR   00A0H.7 A   
+NEXT . . . . . . .  C ADDR   0051H   A   
+NUM. . . . . . . .  C ADDR   0200H   A   
+N_SEC. . . . . . .  C ADDR   0073H   A   
+OFF. . . . . . . .  C ADDR   00CEH   A   
+ONE_SEC. . . . . .  C ADDR   0069H   A   
+ON_OFF . . . . . .  C ADDR   00BDH   A   
+ON_START . . . . .  C ADDR   00A1H   A   
+OUT_SP . . . . . .  C ADDR   0177H   A   
+P0 . . . . . . . .  D ADDR   0080H   A   
+P1 . . . . . . . .  D ADDR   0090H   A   
+P2 . . . . . . . .  D ADDR   00A0H   A   
+P3 . . . . . . . .  D ADDR   00B0H   A   
+PAUSE. . . . . . .  C ADDR   0183H   A   
+PORT . . . . . . .  D ADDR   0080H   A   
+PWASH. . . . . . .  C ADDR   0143H   A   
+RS1. . . . . . . .  B ADDR   00D0H.4 A   
+R_LED. . . . . . .  B ADDR   00A0H.1 A   
+S1 . . . . . . . .  B ADDR   0090H.0 A   
+S2 . . . . . . . .  B ADDR   0090H.1 A   
+S3 . . . . . . . .  B ADDR   0090H.2 A   
+S4 . . . . . . . .  B ADDR   0090H.3 A   
+SELECT_MOD . . . .  C ADDR   0103H   A   
+SEND_NUM . . . . .  C ADDR   019EH   A   
+START. . . . . . .  C ADDR   0178H   A   
+S_LED. . . . . . .  B ADDR   00A0H.0 A   
+S_P. . . . . . . .  C ADDR   015CH   A   
+TF0. . . . . . . .  B ADDR   0088H.5 A   
+TH0. . . . . . . .  D ADDR   008CH   A   
+TH1. . . . . . . .  D ADDR   008DH   A   
+TIMER_INT. . . . .  C ADDR   0041H   A   
+TL0. . . . . . . .  D ADDR   008AH   A   
+TL1. . . . . . . .  D ADDR   008BH   A   
+A51 MACRO ASSEMBLER  CAMASIRMAKINASI                                                      05/25/2015 00:41:38 PAGE     7
+
+TMOD . . . . . . .  D ADDR   0089H   A   
+TR0. . . . . . . .  B ADDR   0088H.4 A   
+TR1. . . . . . . .  B ADDR   0088H.6 A   
+UNPAUSE. . . . . .  C ADDR   018AH   A   
+WOOL . . . . . . .  C ADDR   0123H   A   
+W_LED. . . . . . .  B ADDR   00A0H.2 A   
+YAZDIR . . . . . .  C ADDR   0083H   A   
+_50K . . . . . . .  C ADDR   006BH   A   
+
+
+REGISTER BANK(S) USED: 0 
+
+
+ASSEMBLY COMPLETE.  0 WARNING(S), 0 ERROR(S)
